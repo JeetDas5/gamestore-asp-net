@@ -8,6 +8,7 @@
 
   <ItemGroup>
     <Folder Include="Endpoints\" />
+    <Folder Include="models\" />
   </ItemGroup>
 
 </Project>
