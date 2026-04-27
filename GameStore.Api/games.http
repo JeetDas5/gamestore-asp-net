@@ -1,7 +1,7 @@
 GET http://localhost:5181/games
 
 ###
-GET http://localhost:5181/games/5
+GET http://localhost:5181/games/1
 
 ###
 POST http://localhost:5181/games
@@ -9,8 +9,8 @@ Content-Type: application/json
 
 {
     "name": "Clash of Clans",
-    "genre": "Strategy",
-    "price": 69.99,
+    "genreId": 3,
+    "price": 29.99,
     "releaseDate": "2007-01-23"
 }
 

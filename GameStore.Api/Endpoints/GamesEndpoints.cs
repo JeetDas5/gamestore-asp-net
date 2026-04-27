@@ -1,4 +1,6 @@
+using GameStore.Api.Data;
 using GameStore.Api.Dtos;
+using GameStore.Api.models;
 
 namespace GameStore.Api.Endpoints;
 
@@ -20,28 +22,53 @@ public static class GamesEndpoints
         group.MapGet("/", () => games);
 
 
-        group.MapGet("/{id}", (int id) =>
+        group.MapGet("/{id}", async (int id, GameStoreContext dbContext) =>
         {
-            var game = games.Find(g => g.Id == id);
+            var game = await dbContext.Games.FindAsync(id);
 
-            return game is not null ? Results.Ok(game) : Results.NotFound();
+            return game is not null ? Results.Ok(
+                new GameDetailsDto(
+                    game.Id,
+                    game.Name,
+                    game.GenreId,
+                    game.Price,
+                    DateOnly.FromDateTime(game.ReleaseDate)
+                )
+            ) : Results.NotFound();
         }).WithName(GetGameEndpointName);
 
-        group.MapPost("/", (CreateGameDto newGame) =>
+        group.MapPost("/", async (CreateGameDto newGame, GameStoreContext dbContext) =>
         {
 
-            GameDto game = new(
-               games.Count + 1,
-               newGame.Name,
-               newGame.Genre,
-               newGame.Price,
-               newGame.ReleaseDate
+            // GameDto game = new(
+            //    games.Count + 1,
+            //    newGame.Name,
+            //    newGame.Genre,
+            //    newGame.Price,
+            //    newGame.ReleaseDate
 
+            // );
+
+            Game game = new()
+            {
+                Name = newGame.Name,
+                GenreId = newGame.GenreId,
+                Price = newGame.Price,
+                ReleaseDate = newGame.ReleaseDate.ToDateTime(TimeOnly.MinValue)
+            };
+
+            dbContext.Add(game);
+            await dbContext.SaveChangesAsync();
+
+            GameDetailsDto gameDto = new(
+                game.Id,
+                game.Name,
+                game.GenreId,
+                game.Price,
+                DateOnly.FromDateTime(game.ReleaseDate)
             );
 
-            games.Add(game);
-
-            return Results.CreatedAtRoute(GetGameEndpointName, new { id = game.Id }, game);
+            return Results.CreatedAtRoute(GetGameEndpointName, new { id = gameDto.Id }, gameDto);
         });
 
         group.MapPut("/{id}", (int id, UpdateGameDto updatedGame) =>
