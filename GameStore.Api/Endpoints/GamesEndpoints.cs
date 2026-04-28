@@ -1,25 +1,30 @@
 using GameStore.Api.Data;
 using GameStore.Api.Dtos;
 using GameStore.Api.models;
+using Microsoft.EntityFrameworkCore;
 
 namespace GameStore.Api.Endpoints;
 
 public static class GamesEndpoints
 {
     const string GetGameEndpointName = "GetGameById";
-    private static readonly List<GameDto> games = [
-    new GameDto(1, "The Legend of Zelda: Breath of the Wild", "Action-Adventure", 59.99m, new DateOnly(2017, 3, 3)),
-    new GameDto(2, "God of War", "Action-Adventure", 49.99m, new DateOnly(2018, 4, 20)),
-    new GameDto(3, "Red Dead Redemption 2", "Action-Adventure", 59.99m, new DateOnly(2018, 10, 26)),
-    new GameDto(4, "The Witcher 3: Wild Hunt", "RPG", 39.99m, new DateOnly(2015, 5, 19)),
-    new GameDto(5, "Cyberpunk 2077", "RPG", 59.99m, new DateOnly(2020, 12, 10))
-    ];
-
+    
     public static void MapGamesEndpoints(this WebApplication app)
     {
         var group = app.MapGroup("/games");
 
-        group.MapGet("/", () => games);
+        group.MapGet("/", async (GameStoreContext dbContext) => await dbContext.Games
+        .Include(game => game.Genre)
+        .Select(game => new GameSummaryDto(
+            game.Id,
+            game.Name,
+            game.Genre!.Name,
+            game.Price,
+            DateOnly.FromDateTime(game.ReleaseDate)
+        ))
+        .AsNoTracking()
+        .ToListAsync()
+        );
 
 
         group.MapGet("/{id}", async (int id, GameStoreContext dbContext) =>
@@ -71,39 +76,31 @@ public static class GamesEndpoints
             return Results.CreatedAtRoute(GetGameEndpointName, new { id = gameDto.Id }, gameDto);
         });
 
-        group.MapPut("/{id}", (int id, UpdateGameDto updatedGame) =>
+        group.MapPut("/{id}", async (int id, UpdateGameDto updatedGame, GameStoreContext dbContext) =>
         {
-            var index = games.FindIndex(game => game.Id == id);
+            var existingGame = await dbContext.Games.FindAsync(id);
 
-            if (index == -1)
+
+
+            if (existingGame is null)
             {
                 return Results.NotFound();
             }
 
-            GameDto game = new(
-               id,
-               updatedGame.Name,
-               updatedGame.Genre,
-               updatedGame.Price,
-               updatedGame.ReleaseDate
+            existingGame.Name = updatedGame.Name;
+            existingGame.GenreId = updatedGame.GenreId;
+            existingGame.Price = updatedGame.Price;
+            existingGame.ReleaseDate = updatedGame.ReleaseDate.ToDateTime(TimeOnly.MinValue);
 
-            );
-
-            games[index] = game;
-
+            await dbContext.SaveChangesAsync();
             return Results.NoContent();
         });
 
-        group.MapDelete("/{id}", (int id) =>
+        group.MapDelete("/{id}", async (int id, GameStoreContext dbContext) =>
         {
-            var index = games.FindIndex(game => game.Id == id);
-
-            if (index == -1)
-            {
-                return Results.NotFound();
-            }
-
-            games.RemoveAt(index);
+            await dbContext.Games
+                .Where(game => game.Id == id)
+                .ExecuteDeleteAsync();
 
             return Results.NoContent();
         });
