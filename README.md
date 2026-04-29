@@ -1,6 +1,6 @@
 # GameStore
 
-An ASP.NET Core Web API for managing a game store, built with .NET.
+An ASP.NET Core Web API for managing a game store, built with .NET with Entity framework.
 
 ## Features
 
